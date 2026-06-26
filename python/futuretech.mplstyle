@@ -1,0 +1,67 @@
+# FutureTech matplotlib style — sans-serif, clean, publication-ready.
+# Usage:  plt.style.use("/path/to/futuretech.mplstyle")
+# Color CYCLE is set here to the canonical MIT FutureTech brand order so that
+# without specifying colors already yields lab-consistent series colors.
+
+# ---- Fonts (sans throughout). Fallback chain degrades gracefully w/o installs.
+font.family        : sans-serif
+font.sans-serif    : Source Sans Pro, Helvetica Neue, Helvetica, Arial, DejaVu Sans
+font.size          : 13
+axes.titlesize     : 16
+axes.titleweight   : bold
+axes.labelsize     : 14
+xtick.labelsize    : 12
+ytick.labelsize    : 12
+legend.fontsize    : 12
+figure.titlesize   : 17
+figure.titleweight : bold
+
+# ---- Color cycle = MIT FutureTech brand categorical order
+#      (blue, MIT red, green, purple, orange, pink, light blue 2, black)
+axes.prop_cycle : cycler('color', ['1966FF','750014','00AD00','9933FF','ED7700','FF14F0','288DC0','000000'])
+
+# ---- Axes / spines: drop top & right (despined look from figs 1, 4, 9)
+axes.spines.top    : False
+axes.spines.right  : False
+axes.edgecolor     : 40464C
+axes.linewidth     : 1.0
+axes.labelcolor    : 40464C
+axes.titlecolor    : 212326
+axes.titlepad      : 12
+axes.labelpad      : 6
+
+# ---- Grid: light horizontal guide lines only, behind data
+axes.grid          : True
+axes.grid.axis     : y
+axes.axisbelow     : True
+grid.color         : DDE1E6
+grid.linewidth     : 0.8
+grid.alpha         : 0.9
+
+# ---- Ticks: outward, subtle, never diagonal
+xtick.color         : 40464C
+ytick.color         : 40464C
+xtick.direction     : out
+ytick.direction     : out
+xtick.major.size    : 4
+ytick.major.size    : 4
+xtick.labelrotation : 0
+ytick.labelrotation : 0
+
+# ---- Lines & markers
+lines.linewidth    : 2.2
+lines.markersize   : 5
+lines.solid_capstyle : round
+
+# ---- Legend (used only when direct labeling isn't feasible; see helpers)
+legend.frameon     : False
+legend.borderaxespad : 0.5
+
+# ---- Figure: white bg, sensible default size, tight-ish
+figure.facecolor   : white
+axes.facecolor     : white
+figure.figsize     : 7.5, 4.6
+figure.dpi         : 110
+savefig.dpi        : 300
+savefig.bbox       : tight
+savefig.facecolor  : white
