@@ -30,8 +30,9 @@ axes.titlecolor    : 212326
 axes.titlepad      : 12
 axes.labelpad      : 6
 
-# ---- Grid: light horizontal guide lines, behind data
+# ---- Grid: light horizontal guide lines only, behind data
 axes.grid          : True
+axes.grid.axis     : y
 axes.axisbelow     : True
 grid.color         : DDE1E6
 grid.linewidth     : 0.8

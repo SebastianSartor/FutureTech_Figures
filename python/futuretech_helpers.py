@@ -66,6 +66,22 @@ def label_lines(ax, labels=None, positions=None, mode="inline",
     ymin, ymax = ax.get_ylim()
     x_span = xmax - xmin if xmax != xmin else 1.0
     y_span = ymax - ymin if ymax != ymin else 1.0
+    _log_y = ax.get_yscale() == "log"
+
+    def _y_frac(y_val):
+        """Axes-fraction for y_val, correct on both linear and log scales."""
+        try:
+            if _log_y:
+                import math
+                ly = math.log10(max(y_val, 1e-300))
+                lymin = math.log10(max(ymin, 1e-300))
+                lymax = math.log10(max(ymax, 1e-300))
+                span = lymax - lymin if lymax != lymin else 1.0
+                return (ly - lymin) / span
+            else:
+                return (y_val - ymin) / y_span
+        except (ValueError, ZeroDivisionError):
+            return 0.5
 
     if mode == "inline":
         entries = []
@@ -81,15 +97,21 @@ def label_lines(ax, labels=None, positions=None, mode="inline",
             else:
                 x_pos = float(xdata[-1]) + x_offset_frac * x_span
                 y_pos = float(ydata[-1])
-            y_frac = (y_pos - ymin) / y_span
-            entries.append([y_frac, x_pos, y_pos, text, color])
+            entries.append([_y_frac(y_pos), x_pos, y_pos, text, color])
 
         # Collision avoidance: sort by y, nudge overlapping labels upward.
         entries.sort(key=lambda e: e[0])
         for i in range(1, len(entries)):
             if entries[i][0] - entries[i - 1][0] < min_gap_frac:
                 entries[i][0] = entries[i - 1][0] + min_gap_frac
-                entries[i][2] = entries[i][0] * y_span + ymin
+                # convert fraction back to data coords for text placement
+                if _log_y:
+                    import math
+                    lymin = math.log10(max(ymin, 1e-300))
+                    lymax = math.log10(max(ymax, 1e-300))
+                    entries[i][2] = 10 ** (lymin + entries[i][0] * (lymax - lymin))
+                else:
+                    entries[i][2] = entries[i][0] * y_span + ymin
 
         for y_frac, x_pos, y_pos, text, color in entries:
             ax.text(x_pos, y_pos, text, va="center", ha="left",
@@ -105,8 +127,7 @@ def label_lines(ax, labels=None, positions=None, mode="inline",
             key = ln.get_label()
             text = label_overrides.get(key, key)
             y_end = float(ydata[-1])
-            y_frac = (y_end - ymin) / y_span
-            entries.append([y_frac, text, ln.get_color()])
+            entries.append([_y_frac(y_end), text, ln.get_color()])
 
         entries.sort(key=lambda e: e[0])
         for i in range(1, len(entries)):
