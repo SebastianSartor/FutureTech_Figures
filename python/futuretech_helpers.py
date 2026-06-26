@@ -150,8 +150,13 @@ def add_logo(fig, alpha=0.35, height_frac=0.10, margin_frac=0.01):
         logo = mpimg.imread(_LOGO)
         h, w = logo.shape[:2]
         aspect = w / h
+        # Axes are placed in figure-fraction units, but the figure isn't square,
+        # so a box of equal width/height fractions would stretch the logo.
+        # Scale the width fraction by (fig_h / fig_w) so the rendered logo keeps
+        # its true pixel aspect ratio regardless of figure shape.
+        fig_w, fig_h = fig.get_size_inches()
         logo_h = height_frac
-        logo_w = height_frac * aspect
+        logo_w = height_frac * aspect * (fig_h / fig_w)
 
         # Build RGBA array with desired alpha.
         if logo.dtype == np.uint8:
