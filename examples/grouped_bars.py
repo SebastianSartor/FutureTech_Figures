@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python"))
 import numpy as np
 import matplotlib.pyplot as plt
 from futuretech_palette import CATEGORICAL, GRAY
-from futuretech_helpers import use_style, save_figure
+from futuretech_helpers import use_style, save_figure, add_logo
 
 use_style()
 
@@ -41,6 +41,7 @@ ax.set_yticklabels([f"{v}%" for v in range(0, 101, 20)])
 ax.grid(axis="x", visible=False)
 ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.12), ncol=3, frameon=False)
 
+add_logo(fig)
 save_figure(fig, "grouped_bars",
             outdir=os.path.join(os.path.dirname(__file__), "reference_renders"))
 print("done")

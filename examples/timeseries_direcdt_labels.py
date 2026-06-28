@@ -6,7 +6,7 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "python"))
 import numpy as np
 import matplotlib.pyplot as plt
-from futuretech_helpers import use_style, direct_label_lines, save_figure
+from futuretech_helpers import use_style, direct_label_lines, add_logo, save_figure
 
 use_style()
 
@@ -42,6 +42,7 @@ ax.set_xticks(ticks[:len(labels)])
 ax.set_xticklabels(labels, rotation=45, ha="right")
 
 direct_label_lines(ax)
+add_logo(fig)
 
 save_figure(fig, "timeseries_direct_labels",
             outdir=os.path.join(os.path.dirname(__file__), "reference_renders"))

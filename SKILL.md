@@ -15,10 +15,14 @@ publication-ready without per-figure fiddling.
    falling back to Helvetica/Arial on machines without it). Titles bold, axis
    labels regular. No serif/LaTeX fonts.
 
-2. **Text sizes: large enough to read on a slide.**
-   - Axis labels / tick labels: 14 pt / 12 pt (set by the stylesheet)
-   - Figure title: 17 pt bold
-   - Direct line labels: 13 pt bold (same as `label_lines` default)
+2. **Text sizes: large enough to read on a slide.** Hierarchy (largest → smallest):
+   - Slide/deck header (`add_slide_header`): **20 pt bold** — the headline above
+     the chart on a slide. This is the largest text on the figure.
+   - Figure title (`set_title` / `suptitle`): **17 pt bold**
+   - Axis labels: **14 pt regular** (not bold — these are axis descriptors, not
+     headers)
+   - Tick labels: **12 pt**
+   - Direct line labels: **13 pt bold** (same as `label_lines` default)
    Always use the stylesheet sizes — do not override to smaller.
 
 3. **No diagonal tick labels — ever.** Always horizontal. The stylesheet
@@ -76,9 +80,10 @@ publication-ready without per-figure fiddling.
    when building subplots, or call `sync_axes(ax1, ax2, ...)` after plotting.
    Never let matplotlib rescale axes between subplot panels.
 
-10. **FutureTech logo watermark.** Call `add_logo(fig)` before saving.
-    The logo is placed semi-transparently in the bottom-right corner. Alpha can
-    be adjusted; the default (0.35) is legible but unobtrusive.
+10. **FutureTech wordmark.** Call `add_logo(fig)` before saving.
+    By default the cropped wordmark sits in a **footer strip below the plot**
+    (solid MIT red, no overlap with data). Use `placement="overlay"` only when
+    you explicitly want the legacy semi-transparent corner watermark.
 
 11. **Save both PNG (300 dpi) and PDF (vector).** `save_figure()` does this.
 
@@ -89,13 +94,15 @@ This is the primary path. Files live in `python/`.
 ```python
 import sys; sys.path.insert(0, "<skill>/python")
 from futuretech_helpers import (
-    use_style, label_lines, sync_axes, unit_formatter, add_logo, save_figure
+    use_style, label_lines, sync_axes, unit_formatter,
+    add_slide_header, add_logo, save_figure
 )
 from futuretech_palette import categorical, PRIMARY
 
 use_style()                       # applies futuretech.mplstyle
 
 fig, ax = plt.subplots()
+add_slide_header(fig, "Labor market effects by sector")  # optional slide headline
 for name, y in series.items():
     ax.plot(x, y, label=name)
 
@@ -111,7 +118,7 @@ label_lines(ax, mode="right")
 ax.set_ylabel("Spending (2023 $)")
 ax.yaxis.set_major_formatter(unit_formatter(1e9, "B$"))  # e.g. 4000000000 → "4 B$"
 
-add_logo(fig)                     # FutureTech watermark, bottom-right
+add_logo(fig)                     # FutureTech wordmark in footer strip
 save_figure(fig, "myfigure")      # -> myfigure.png + myfigure.pdf
 ```
 
@@ -123,8 +130,11 @@ Key functions (see `python/futuretech_helpers.py` for full signatures):
 - `direct_label_lines(ax, ...)` — legacy alias for `mode="right"`.
 - `unit_formatter(scale, unit, fmt)` — returns a `FuncFormatter` for natural
   unit tick labels. Pass to `ax.yaxis.set_major_formatter(...)`.
+- `add_slide_header(fig, text, fontsize=20)` — large bold slide headline above
+  the plot (larger than the figure title).
 - `sync_axes(*axes, which="both")` — equalize limits across subplot panels.
-- `add_logo(fig, alpha=0.35)` — FutureTech logo watermark, bottom-right.
+- `add_logo(fig, placement="footer")` — solid MIT-red wordmark in a footer
+  strip below the plot (default). `placement="overlay"` for corner watermark.
 - `add_source_note(fig, text)` — small italic credit line, bottom-left.
 - `save_figure(fig, name, outdir=".")` — writes PNG + PDF at publication DPI.
 

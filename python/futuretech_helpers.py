@@ -17,7 +17,7 @@ Typical use:
     # label_lines(ax, mode="right")         # right-margin labels for crowded graphs
     # label_lines(ax, positions={"GDP": (2024, 5.2)})  # manual position override
     ax.set_ylabel("AI Adoption Rate (%)")
-    add_logo(fig)                           # FutureTech watermark, bottom-right
+    add_logo(fig)                           # FutureTech wordmark, footer strip
     save_figure(fig, "adoption")            # writes adoption.png + adoption.pdf at 300dpi
 """
 import os
@@ -27,6 +27,8 @@ import matplotlib.ticker as ticker
 
 _STYLE = os.path.join(os.path.dirname(__file__), "futuretech.mplstyle")
 _LOGO  = os.path.join(os.path.dirname(__file__), "..", "logo-p-1600.png")
+_LOGO_CROP_CACHE = None  # cropped RGBA wordmark, loaded once
+_LOGO_RED = (0x75 / 255, 0x00 / 255, 0x14 / 255)  # MIT red — solid wordmark fill
 
 
 def use_style():
@@ -155,46 +157,92 @@ def direct_label_lines(ax, labels=None, x_frac=1.02, fontsize=13,
                 min_gap_frac=min_gap_frac)
 
 
-def add_logo(fig, alpha=0.35, height_frac=0.10, margin_frac=0.01):
-    """
-    Add the FutureTech logo as a semi-transparent watermark in the bottom-right
-    corner of the figure. Call after all subplots are added.
-
-    alpha       : transparency of the logo (0 = invisible, 1 = opaque).
-    height_frac : logo height as a fraction of the figure height.
-    margin_frac : gap from the figure edges, in figure-fraction units.
-    """
+def _load_logo_wordmark():
+    """Crop the raster logo to its text bounds and render as solid MIT red."""
+    global _LOGO_CROP_CACHE
+    if _LOGO_CROP_CACHE is not None:
+        return _LOGO_CROP_CACHE
     if not os.path.exists(_LOGO):
-        return
+        return None
     try:
         import matplotlib.image as mpimg
         logo = mpimg.imread(_LOGO)
-        h, w = logo.shape[:2]
+        if logo.dtype == np.uint8:
+            logo = logo.astype(float) / 255.0
+        if logo.ndim == 2:
+            logo = np.dstack([logo, logo, logo, np.ones_like(logo)])
+        rgb = logo[..., :3]
+        a_ch = logo[..., 3] if logo.shape[2] >= 4 else np.ones(logo.shape[:2])
+        # Mask: non-transparent pixels with visible ink (drops the black matte).
+        mask = (a_ch > 0.08) & (rgb.max(axis=2) > 0.06)
+        if not mask.any():
+            return None
+        rows = np.any(mask, axis=1)
+        cols = np.any(mask, axis=0)
+        r0, r1 = rows.argmax(), len(rows) - rows[::-1].argmax()
+        c0, c1 = cols.argmax(), len(cols) - cols[::-1].argmax()
+        mask = mask[r0:r1, c0:c1]
+        rgba = np.zeros((*mask.shape, 4), dtype=float)
+        rgba[..., :3] = _LOGO_RED
+        rgba[..., 3] = mask.astype(float)
+        _LOGO_CROP_CACHE = rgba
+        return rgba
+    except Exception:
+        return None
+
+
+def add_slide_header(fig, text, fontsize=20, fontweight="bold", y=0.98, pad_top=0.04):
+    """
+    Add a large deck/slide header above the figure — larger than the plot title.
+
+    Use this for the slide headline; keep ax.set_title() for the chart title.
+    """
+    fig.suptitle(text, fontsize=fontsize, fontweight=fontweight, y=y, ha="center")
+    top = fig.subplotpars.top
+    fig.subplots_adjust(top=max(top - pad_top, 0.78))
+
+
+def add_logo(fig, alpha=1.0, placement="footer", height_frac=0.045,
+             footer_frac=0.08, margin_frac=0.02):
+    """
+    Add the FutureTech wordmark. Default: solid MIT red in a footer strip below
+    the plot (no overlap with data). Pass placement="overlay" for the legacy
+    semi-transparent corner watermark.
+
+    alpha        : wordmark opacity (default 1.0 — solid in footer).
+    placement    : "footer" (default) or "overlay".
+    height_frac  : wordmark height as a fraction of figure height.
+    footer_frac  : bottom margin reserved for the footer strip (footer mode).
+    margin_frac  : inset from figure edges, in figure-fraction units.
+    """
+    rgba = _load_logo_wordmark()
+    if rgba is None:
+        return
+    try:
+        h, w = rgba.shape[:2]
         aspect = w / h
-        # Axes are placed in figure-fraction units, but the figure isn't square,
-        # so a box of equal width/height fractions would stretch the logo.
-        # Scale the width fraction by (fig_h / fig_w) so the rendered logo keeps
-        # its true pixel aspect ratio regardless of figure shape.
         fig_w, fig_h = fig.get_size_inches()
         logo_h = height_frac
         logo_w = height_frac * aspect * (fig_h / fig_w)
+        display = rgba.copy()
+        display[..., 3] *= alpha
 
-        # Build RGBA array with desired alpha.
-        if logo.dtype == np.uint8:
-            logo = logo.astype(float) / 255.0
-        if logo.ndim == 3 and logo.shape[2] == 4:
-            rgba = logo.copy()
-            rgba[..., 3] *= alpha
+        if placement == "footer":
+            bottom = fig.subplotpars.bottom
+            fig.subplots_adjust(bottom=bottom + footer_frac)
+            y0 = margin_frac * 0.5
+            logo_h = min(logo_h, footer_frac - y0 - margin_frac * 0.5)
+            logo_w = logo_h * aspect * (fig_h / fig_w)
+            x0 = 1.0 - logo_w - margin_frac
         else:
-            rgba = np.dstack([logo[..., :3],
-                              np.full(logo.shape[:2], alpha, dtype=float)])
+            y0 = margin_frac
+            x0 = 1.0 - logo_w - margin_frac
 
-        ax_logo = fig.add_axes(
-            [1.0 - logo_w - margin_frac, margin_frac, logo_w, logo_h]
-        )
-        ax_logo.imshow(rgba, aspect="auto", interpolation="lanczos")
+        ax_logo = fig.add_axes([x0, y0, logo_w, logo_h])
+        ax_logo.imshow(display, aspect="auto", interpolation="lanczos")
         ax_logo.axis("off")
         ax_logo.patch.set_alpha(0)
+        ax_logo.set_zorder(10)
     except Exception:
         pass  # never break figure rendering for a watermark
 
