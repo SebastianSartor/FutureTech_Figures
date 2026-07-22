@@ -80,12 +80,24 @@ publication-ready without per-figure fiddling.
    when building subplots, or call `sync_axes(ax1, ax2, ...)` after plotting.
    Never let matplotlib rescale axes between subplot panels.
 
-10. **FutureTech wordmark.** Call `add_logo(fig)` before saving.
-    By default the cropped wordmark sits in a **footer strip below the plot**
-    (solid MIT red, no overlap with data). Use `placement="overlay"` only when
-    you explicitly want the legacy semi-transparent corner watermark.
+10. **FutureTech logo.** Call `add_logo(fig)` before saving. By default the full
+    brand logo (grey "MIT", red "FutureTech", tagline) sits **solid** in a
+    **footer strip below the plot** — no overlap with data, and not a faded or
+    recolored watermark. It is composited onto the white background so its edges
+    stay clean. Use `placement="overlay"` only when you explicitly want the
+    legacy bottom-right corner mark.
 
-11. **Save both PNG (300 dpi) and PDF (vector).** `save_figure()` does this.
+11. **No caption or description under the chart unless explicitly asked.** The
+    figure must stand on its own through its title, axis labels, and direct
+    labels. Do **not** add an explanatory sentence, interpretation, takeaway, or
+    "note:" line beneath (or inside) the chart on your own initiative — resist
+    the urge even when the finding feels worth spelling out. Captions belong in
+    the surrounding paper/slide text, written by the author. Only add one when
+    the user explicitly asks. (`add_source_note()` is the sole exception: a short
+    data-source/credit line when a source genuinely needs attributing — never a
+    place for commentary or takeaways.)
+
+12. **Save both PNG (300 dpi) and PDF (vector).** `save_figure()` does this.
 
 ## How to use it — Python (matplotlib)
 
@@ -133,9 +145,10 @@ Key functions (see `python/futuretech_helpers.py` for full signatures):
 - `add_slide_header(fig, text, fontsize=20)` — large bold slide headline above
   the plot (larger than the figure title).
 - `sync_axes(*axes, which="both")` — equalize limits across subplot panels.
-- `add_logo(fig, placement="footer")` — solid MIT-red wordmark in a footer
-  strip below the plot (default). `placement="overlay"` for corner watermark.
-- `add_source_note(fig, text)` — small italic credit line, bottom-left.
+- `add_logo(fig, placement="footer")` — full brand logo, solid, in a footer
+  strip below the plot (default). `placement="overlay"` for the corner mark.
+- `add_source_note(fig, text)` — small italic data-source/credit line,
+  bottom-left. Not for commentary or takeaways (see rule 11).
 - `save_figure(fig, name, outdir=".")` — writes PNG + PDF at publication DPI.
 
 Palette: `python/futuretech_palette.py` exposes `CATEGORICAL` (ordered list),

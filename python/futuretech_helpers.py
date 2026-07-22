@@ -27,8 +27,7 @@ import matplotlib.ticker as ticker
 
 _STYLE = os.path.join(os.path.dirname(__file__), "futuretech.mplstyle")
 _LOGO  = os.path.join(os.path.dirname(__file__), "..", "logo-p-1600.png")
-_LOGO_CROP_CACHE = None  # cropped RGBA wordmark, loaded once
-_LOGO_RED = (0x75 / 255, 0x00 / 255, 0x14 / 255)  # MIT red — solid wordmark fill
+_LOGO_CACHE = None  # raw RGBA logo (cropped to ink bounds), loaded once
 
 
 def use_style():
@@ -157,11 +156,16 @@ def direct_label_lines(ax, labels=None, x_frac=1.02, fontsize=13,
                 min_gap_frac=min_gap_frac)
 
 
-def _load_logo_wordmark():
-    """Crop the raster logo to its text bounds and render as solid MIT red."""
-    global _LOGO_CROP_CACHE
-    if _LOGO_CROP_CACHE is not None:
-        return _LOGO_CROP_CACHE
+def _load_logo():
+    """Load the FutureTech logo once, cropped to its visible ink bounds.
+
+    Returns the raw RGBA array with the real brand colors preserved (grey
+    "MIT", red "FutureTech", tagline). `add_logo` composites it over white at
+    render time so the edges stay clean.
+    """
+    global _LOGO_CACHE
+    if _LOGO_CACHE is not None:
+        return _LOGO_CACHE
     if not os.path.exists(_LOGO):
         return None
     try:
@@ -171,22 +175,16 @@ def _load_logo_wordmark():
             logo = logo.astype(float) / 255.0
         if logo.ndim == 2:
             logo = np.dstack([logo, logo, logo, np.ones_like(logo)])
-        rgb = logo[..., :3]
-        a_ch = logo[..., 3] if logo.shape[2] >= 4 else np.ones(logo.shape[:2])
-        # Mask: non-transparent pixels with visible ink (drops the black matte).
-        mask = (a_ch > 0.08) & (rgb.max(axis=2) > 0.06)
-        if not mask.any():
-            return None
-        rows = np.any(mask, axis=1)
-        cols = np.any(mask, axis=0)
-        r0, r1 = rows.argmax(), len(rows) - rows[::-1].argmax()
-        c0, c1 = cols.argmax(), len(cols) - cols[::-1].argmax()
-        mask = mask[r0:r1, c0:c1]
-        rgba = np.zeros((*mask.shape, 4), dtype=float)
-        rgba[..., :3] = _LOGO_RED
-        rgba[..., 3] = mask.astype(float)
-        _LOGO_CROP_CACHE = rgba
-        return rgba
+        # Crop away transparent padding so the logo fills its footer box.
+        if logo.shape[2] >= 4:
+            mask = logo[..., 3] > 0.05
+            if mask.any():
+                rows, cols = np.any(mask, axis=1), np.any(mask, axis=0)
+                r0, r1 = rows.argmax(), len(rows) - rows[::-1].argmax()
+                c0, c1 = cols.argmax(), len(cols) - cols[::-1].argmax()
+                logo = logo[r0:r1, c0:c1]
+        _LOGO_CACHE = logo
+        return logo
     except Exception:
         return None
 
@@ -202,49 +200,58 @@ def add_slide_header(fig, text, fontsize=20, fontweight="bold", y=0.98, pad_top=
     fig.subplots_adjust(top=max(top - pad_top, 0.78))
 
 
-def add_logo(fig, alpha=1.0, placement="footer", height_frac=0.045,
-             footer_frac=0.08, margin_frac=0.02):
+def add_logo(fig, alpha=1.0, placement="footer", height_frac=0.06,
+             footer_frac=0.09, margin_frac=0.02):
     """
-    Add the FutureTech wordmark. Default: solid MIT red in a footer strip below
-    the plot (no overlap with data). Pass placement="overlay" for the legacy
-    semi-transparent corner watermark.
+    Add the full FutureTech logo — the real brand mark (grey "MIT", red
+    "FutureTech", tagline), rendered solid, not a faded or recolored watermark.
+    Default: in a footer strip below the plot, so it never overlaps the data.
+    Pass placement="overlay" for the legacy bottom-right corner mark.
 
-    alpha        : wordmark opacity (default 1.0 — solid in footer).
+    The logo is composited onto the (white) figure background so its edges stay
+    clean — the source PNG's transparent regions carry a dark RGB that would
+    otherwise bleed into the edges as a halo.
+
+    alpha        : logo opacity (1.0 = fully solid; lower fades toward white).
     placement    : "footer" (default) or "overlay".
-    height_frac  : wordmark height as a fraction of figure height.
+    height_frac  : logo height as a fraction of figure height.
     footer_frac  : bottom margin reserved for the footer strip (footer mode).
     margin_frac  : inset from figure edges, in figure-fraction units.
     """
-    rgba = _load_logo_wordmark()
-    if rgba is None:
+    logo = _load_logo()
+    if logo is None:
         return
     try:
-        h, w = rgba.shape[:2]
+        h, w = logo.shape[:2]
         aspect = w / h
         fig_w, fig_h = fig.get_size_inches()
-        logo_h = height_frac
-        logo_w = height_frac * aspect * (fig_h / fig_w)
-        display = rgba.copy()
-        display[..., 3] *= alpha
 
+        # Composite over white (preserves the real colors and kills the edge
+        # halo), then apply opacity as a fade toward white.
+        if logo.shape[2] >= 4:
+            a = logo[..., 3:4]
+            rgb = logo[..., :3] * a + (1.0 - a)
+        else:
+            rgb = logo[..., :3]
+        rgb = rgb * alpha + (1.0 - alpha)
+
+        logo_h = height_frac
         if placement == "footer":
             bottom = fig.subplotpars.bottom
             fig.subplots_adjust(bottom=bottom + footer_frac)
             y0 = margin_frac * 0.5
             logo_h = min(logo_h, footer_frac - y0 - margin_frac * 0.5)
-            logo_w = logo_h * aspect * (fig_h / fig_w)
-            x0 = 1.0 - logo_w - margin_frac
-        else:
-            y0 = margin_frac
-            x0 = 1.0 - logo_w - margin_frac
+        logo_w = logo_h * aspect * (fig_h / fig_w)
+        y0 = margin_frac * 0.5 if placement == "footer" else margin_frac
+        x0 = 1.0 - logo_w - margin_frac
 
         ax_logo = fig.add_axes([x0, y0, logo_w, logo_h])
-        ax_logo.imshow(display, aspect="auto", interpolation="lanczos")
+        ax_logo.imshow(rgb, aspect="auto", interpolation="lanczos")
         ax_logo.axis("off")
         ax_logo.patch.set_alpha(0)
         ax_logo.set_zorder(10)
     except Exception:
-        pass  # never break figure rendering for a watermark
+        pass  # never break figure rendering for the logo
 
 
 def unit_formatter(scale=1, unit="", fmt="{:.3g}"):
